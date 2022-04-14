@@ -1,25 +1,43 @@
-﻿namespace Signalr_poc.Entity;
+﻿using SIPSorcery.Net;
+
+namespace Signalr_poc.Entity;
 
 public class Room
 {
     public string Name { get;private set; }
-    public List<User> Users { get; set; }
+    public List<RTCPeerConnection> Peers { get; set; }
 
 
     public Room(string name)
     {
         Name = name;
-        Users = new List<User>();
+        Peers = new List<RTCPeerConnection>();
     }
 
-    public void AddUser(User user)
+    public void AddPeerConnection(RTCPeerConnection peerConnection)
     {
-        Users.Add(user);
+        Peers.Add(peerConnection);
     }
 
-    public void RemoveUser(User user)
+    public void RemovePeerConnection(RTCPeerConnection peerConnection)
     {
-        Users.Remove(user);
+        Peers.Remove(peerConnection);
+    }
+
+    public void SendRtpPacket(RTPPacket packet, RTCPeerConnection peerConnection)
+    {
+        foreach(var peer in Peers)
+        {
+            if(peer != peerConnection)
+            {
+                peer.SendRtpRaw
+                    (SDPMediaTypesEnum.audio,
+                    packet.Payload,
+                    packet.Header.Timestamp,
+                    packet.Header.MarkerBit,
+                    packet.Header.PayloadType);
+            }
+        }
     }
 }
 

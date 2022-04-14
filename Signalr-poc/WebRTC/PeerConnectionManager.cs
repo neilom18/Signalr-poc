@@ -1,4 +1,5 @@
-﻿using Signalr_poc.Entity;
+﻿using Microsoft.AspNetCore.SignalR;
+using Signalr_poc.Entity;
 using Signalr_poc.Repository;
 using SIPSorcery.Net;
 using SIPSorceryMedia.Abstractions;
@@ -9,10 +10,12 @@ public class PeerConnectionManager : IPeerConnectionManager
 {
 
     private readonly IUserRepository _userRepository;
+    private readonly IHubContext _hubContext;
 
-    public PeerConnectionManager(IUserRepository userRepository)
+    public PeerConnectionManager(IUserRepository userRepository, IHubContext hubContext)
     {
         _userRepository ??= userRepository;
+        _hubContext ??= hubContext;
     }
     public RTCPeerConnection CreatePeer()
     {
@@ -34,10 +37,11 @@ public class PeerConnectionManager : IPeerConnectionManager
         };
     }
 
-    public RTCSessionDescription CreateOffer(RTCPeerConnection peerConnection, Room room)
+    public RTCSessionDescriptionInit? CreateOffer(RTCPeerConnection peerConnection, Room room, string hubConnectionId)
     {
         AddMediaTrack(peerConnection);
-        ConfigureRTCPeer(peerConnection, room);
+        ConfigureRTCPeer(peerConnection, room, hubConnectionId);
+        return peerConnection.createOffer(null);
     }
 
     public void AddMediaTrack(RTCPeerConnection peerConnection)
@@ -48,23 +52,34 @@ public class PeerConnectionManager : IPeerConnectionManager
         peerConnection.addTrack(audioTrack);
     }
 
-    public void ConfigureRTCPeer(RTCPeerConnection peerConnection, Room room)
+    public void ConfigureRTCPeer(RTCPeerConnection peerConnection, Room room, string hubConnectionId)
     {
         peerConnection.onconnectionstatechange += (state) =>
         {
             if(state == RTCPeerConnectionState.disconnected || state == RTCPeerConnectionState.closed || state == RTCPeerConnectionState.failed)
             {
-                var user = _userRepository.GetUsers()
-                .Where(u => u.RTCPeerConnections.Contains(peerConnection))
-                .First();
-                room.RemoveUser(user);
+                room.RemovePeerConnection(peerConnection);
             }
         };
+        peerConnection.OnRtpPacketReceived += (ip, media, pkt) => room.SendRtpPacket(pkt, peerConnection);
 
+        // Diagnostics.
+        peerConnection.OnReceiveReport += (re, media, rr) => Console.WriteLine($"RTCP Receive for {media} from {re}\n{rr.GetDebugSummary()}");
+        peerConnection.OnSendReport += (media, sr) => Console.WriteLine($"RTCP Send for {media}\n{sr.GetDebugSummary()}");
+        peerConnection.GetRtpChannel().OnStunMessageReceived += (msg, ep, isRelay) => Console.WriteLine($"STUN {msg.Header.MessageType} received from {ep}.");
+        peerConnection.oniceconnectionstatechange += (state) => Console.WriteLine($"ICE connection state change to {state}.");
 
+        peerConnection.onicecandidate += (candidate) => _hubContext.Clients.Client(hubConnectionId).SendAsync("IceCandidateAdded", candidate);
     }
+
     public bool SetRemoteDescription(RTCSessionDescription sdp)
     {
+
+    }
+
+    public void AddIceCandidate(RTCIceCandidateInit candidate)
+    {
+        peercon
     }
 }
 

@@ -5,9 +5,9 @@ namespace Signalr_poc.WebRTC;
 
 public interface IPeerConnectionManager
 {
-    RTCPeerConnection CreatePeer(User user);
-    RTCSessionDescription CreateOffer(RTCPeerConnection peerConnection);
+    RTCPeerConnection CreatePeer();
+    RTCSessionDescriptionInit? CreateOffer(RTCPeerConnection peerConnection, Room room, string hubConnectionId);
     bool SetRemoteDescription(RTCSessionDescription sdp);
-
+    void AddIceCandidate(RTCIceCandidate candidate);
 }
 

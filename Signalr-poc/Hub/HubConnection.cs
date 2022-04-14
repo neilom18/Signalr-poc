@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Signalr_poc.DTOs;
 using Signalr_poc.Repository;
+using Signalr_poc.WebRTC;
 
 namespace Signalr_poc;
 
@@ -9,6 +10,7 @@ public class HubConnection : Hub
     private readonly ILogger<HubConnection> _logger;
     private readonly IUserRepository _userRepository;
     private readonly IRoomRepository _roomRepository;
+    private readonly IPeerConnectionManager _peerConnectionManager;
     public HubConnection(ILogger<HubConnection> logger, IUserRepository userRepository, IRoomRepository roomRepository)
     {
         _logger = logger;
@@ -44,7 +46,8 @@ public class HubConnection : Hub
     {
         var user = _userRepository.GetUser(Context.ConnectionId);
         var room = _roomRepository.GetRoom(roomName);
-        room.AddUser(user);
+
+        room.AddPeerConnection();
         await Groups.AddToGroupAsync(user.ConnectionId, roomName);
         await Clients.Group(room.Name).SendAsync
             ("UserJoinedRoom", new GroupNotification {UserName = user.Name, RoomName = room.Name });
