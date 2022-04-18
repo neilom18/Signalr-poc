@@ -7,5 +7,6 @@ public interface IRoomRepository
     bool CreateRoom(string roomName);
     bool DeleteRoom(string roomName);
     Room? GetRoom(string roomName);
+    IEnumerable<Room> GetAllRooms();
 }
 

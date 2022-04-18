@@ -8,6 +8,7 @@ public class RoomRepository : IRoomRepository
     public RoomRepository()
     {
         _rooms ??= new Dictionary<string, Room>();
+        CreateDefaultRooms();
     }
     public bool CreateRoom(string roomName)
     {
@@ -19,10 +20,21 @@ public class RoomRepository : IRoomRepository
         return _rooms.Remove(roomName);
     }
 
+    public IEnumerable<Room> GetAllRooms()
+    {
+        return _rooms.Values;
+    }
+
     public Room? GetRoom(string roomName)
     {
         _rooms.TryGetValue(roomName, out Room room);
         return room;
+    }
+
+    private void CreateDefaultRooms()
+    {
+        var room = new Room("Default");
+        _rooms.TryAdd(room.Name, room);
     }
 }
 

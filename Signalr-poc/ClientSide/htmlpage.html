@@ -70,7 +70,16 @@
 
         function createUser() {
             var username = document.querySelector("#username").value;
-            hubConnection.invoke("CreateUser", username);
+            hubConnection.invoke("CreateUser", username)
+            .then(() => {
+                hubConnection.invoke("GetAllRooms")
+                .then((roomsNames) => {
+                    console.log(roomsNames);
+                    if (roomsNames) {
+                        roomsNames.forEach(displayRoom);
+                    }
+                })
+            });
         }
 
         function createRoom() {

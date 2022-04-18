@@ -45,6 +45,11 @@ public class HubConnection : Hub
             await Clients.Caller.SendAsync("RoomCreated", roomName);
     }
 
+    public async Task<List<string>> GetAllRooms()
+    {
+        return _roomRepository.GetAllRooms().Select(x => x.Name).ToList();
+    }
+
     public async Task JoinRoom(string roomName)
     {
         var user = _userRepository.GetUser(Context.ConnectionId);
@@ -74,9 +79,7 @@ public class HubConnection : Hub
 
     public void AddIceCandidate(IceInfoDTO iceInfoDTO)
     {
-        var room = _roomRepository.GetRoom(iceInfoDTO.roomName);
-        var peerConnection = room.GetPeerConection(Context.ConnectionId);
-        _peerConnectionManager.AddIceCandidate(iceInfoDTO.iceCandidateInit, peerConnection);
+        _peerConnectionManager.AddIceCandidate(iceInfoDTO, Context.ConnectionId);
     }
 }
 

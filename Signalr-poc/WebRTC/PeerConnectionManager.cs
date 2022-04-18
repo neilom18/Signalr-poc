@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using Signalr_poc.DTOs;
 using Signalr_poc.Entity;
 using Signalr_poc.Repository;
 using SIPSorcery.Net;
@@ -10,12 +11,14 @@ public class PeerConnectionManager : IPeerConnectionManager
 {
 
     private readonly IUserRepository _userRepository;
+    private readonly IRoomRepository _roomRepository;
     private readonly IHubContext<Hub> _hubContext;
 
-    public PeerConnectionManager(IUserRepository userRepository, IHubContext<Hub> hubContext)
+    public PeerConnectionManager(IUserRepository userRepository, IHubContext<Hub> hubContext, IRoomRepository roomRepository)
     {
         _userRepository ??= userRepository;
         _hubContext ??= hubContext;
+        _roomRepository = roomRepository;
     }
     public RTCPeerConnection CreatePeer()
     {
@@ -78,9 +81,11 @@ public class PeerConnectionManager : IPeerConnectionManager
         peerConnection.setRemoteDescription(sdp);
     }
 
-    public void AddIceCandidate(RTCIceCandidateInit candidate, RTCPeerConnection peerConnection)
+    public void AddIceCandidate(IceInfoDTO iceInfoDTO, string connectionId)
     {
-        peerConnection.addIceCandidate(candidate);
+        var room = _roomRepository.GetRoom(iceInfoDTO.roomName);
+        var peerConnection = room.GetPeerConection(connectionId);
+        peerConnection.addIceCandidate(iceInfoDTO.iceCandidateInit);
     }
 }
 
