@@ -36,7 +36,7 @@
         let i = 0;
         let hubConnection;
         window.onload = async function () {
-            hubConnection = new signalR.HubConnectionBuilder().withUrl("https://localhost:7197/hub").build();
+            hubConnection = new signalR.HubConnectionBuilder().withUrl("https://4396-177-125-237-209.ngrok.io/hub").build();
             await hubConnection.start();
             subscribeHub();
         }
@@ -59,6 +59,15 @@
             })
         }
 
+        function subscribePeerConnection(peerConnection, roomname){
+            peerConnection.ontrack = (event) => {
+                var audio = document.getElementById("audioCtl_" + roomname);
+                console.log(audio);
+                audio.srcObject = event.streams[0];
+                audio.play(); 
+            }
+        }
+
         function createUser() {
             var username = document.querySelector("#username").value;
             hubConnection.invoke("CreateUser", username);
@@ -79,7 +88,11 @@
             button.textContent = 'JoinRoom';
             button.onclick = function() {joinRoom(roomname)};
             document.querySelector(".rooms").appendChild(button);
-            var audio = document.createElement('audio')
+            var audio = document.createElement('audio');
+            audio.controls = true;
+            audio.autoplay = true;
+            audio.id = "audioCtl_" + roomname;
+            document.querySelector(".rooms").appendChild(audio);
         }
 
         async function joinRoom(roomname) {
@@ -94,6 +107,7 @@
             localStream.getTracks().forEach(track => {
                 peerConnections[i].addTrack(track, localStream);
             });
+            subscribePeerConnection(peerConnections[i], roomname);
             await hubConnection.invoke("GetServerOffer", roomname)
             .then((data) => {
                 data.type = 'offer';

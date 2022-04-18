@@ -29,8 +29,8 @@ public class Room
     {
         foreach(var peer in Peers.Values)
         {
-            if(peer != peerConnection)
-            {
+            //if(peer != peerConnection)
+            //{
                 Console.WriteLine("Usuario " + userName + "enviou um RTPPacket");
                 peer.SendRtpRaw
                     (SDPMediaTypesEnum.audio,
@@ -38,7 +38,7 @@ public class Room
                     packet.Header.Timestamp,
                     packet.Header.MarkerBit,
                     packet.Header.PayloadType);
-            }
+            //}
         }
     }
 
