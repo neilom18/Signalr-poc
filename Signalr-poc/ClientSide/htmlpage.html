@@ -25,11 +25,39 @@
     <script src="Lib/signalr.js" type="text/javascript"></script>
     <script type="text/javascript">
         //https://localhost:7197
-        
-        let i = 1;
-        
-        var hubConnection = new signalR.HubConnectionBuilder().withUrl("https://localhost:7197/hub").build();
-        hubConnection.start();
+        var peerConnections = {};
+        const config = {
+            iceServers: [
+                {
+                urls: ["stun:stun.l.google.com:19302"]
+                }
+            ]
+        };
+        let i = 0;
+        let hubConnection;
+        window.onload = async function () {
+            hubConnection = new signalR.HubConnectionBuilder().withUrl("https://localhost:7197/hub").build();
+            await hubConnection.start();
+            subscribeHub();
+        }
+
+        function subscribeHub(){
+            hubConnection.on("RoomCreated", (data) => {
+                console.log("Sala " + data + " criada!!!!");
+            })
+    
+            hubConnection.on("UserCreated", (data) => {
+                console.log("O usuário " + data + " foi cadastrado!!!");
+            })
+    
+            hubConnection.on("UserJoinedRoom", (data) => {
+                console.log("Usuário: " + data.userName + " entrou na sala " + data.roomName);
+            })
+    
+            hubConnection.on("SDPOfferReceived", (data) => {
+                console.log(data);
+            })
+        }
 
         function createUser() {
             var username = document.querySelector("#username").value;
@@ -43,7 +71,7 @@
         }
         
         function displayRoom(roomname) {
-            var room = document.createElement('h2');
+            var room = document.createElement('h2'); 
             room.textContent = roomname;
             document.querySelector(".rooms").appendChild(room);
             var button = document.createElement('button');
@@ -51,24 +79,53 @@
             button.textContent = 'JoinRoom';
             button.onclick = function() {joinRoom(roomname)};
             document.querySelector(".rooms").appendChild(button);
+            var audio = document.createElement('audio')
         }
 
-        function joinRoom(roomname){
-            console.log("AAAAAAAAAAAAAAAAAAAAAAAAA");
-            hubConnection.invoke("JoinRoom",roomname);
+        async function joinRoom(roomname) {
+            await hubConnection.invoke("JoinRoom",roomname);
+            await createPeerConnection(roomname);
         }
 
-        hubConnection.on("RoomCreated", (data) => {
-            console.log("Sala " + data + " criada!!!!");
-        })
+        async function createPeerConnection(roomname) {
+            var peerConnection = new RTCPeerConnection(config);
+            peerConnections[i] = peerConnection;
+            var localStream = await GetMediaAudio();
+            localStream.getTracks().forEach(track => {
+                peerConnections[i].addTrack(track, localStream);
+            });
+            await hubConnection.invoke("GetServerOffer", roomname)
+            .then((data) => {
+                data.type = 'offer';
+                setAnswer(data, roomname);
+            });
+        }
 
-        hubConnection.on("UserCreated", (data) => {
-            console.log("O usuário " + data + " foi cadastrado!!!");
-        })
+        async function GetMediaAudio(){
+            return await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+        }
 
-        hubConnection.on("UserJoinedRoom", (data) => {
-            console.log(data);
-        })
+        function setAnswer(offer, roomname) {
+            peerConnections[i].setRemoteDescription(offer)
+            .then(() => {
+                peerConnections[i].createAnswer()
+                    .then((answer) => {
+                        console.log(answer);
+                        console.log(i);
+                        console.log(peerConnections[i]);
+                        return peerConnections[i].setLocalDescription(answer);
+                    })
+                    .then(async () => {
+                        console.log('Enviando resposta ao servidor');
+                        console.log('SDP: ' + peerConnections[i].localDescription?.sdp);
+                        //this.localPeerConnection.localDescription.type = 'answer'; // XUNXO ALERT
+                        await hubConnection.invoke('SetAnswer', roomname, { sdp: peerConnections[i].localDescription?.sdp, type: 0 });
+                        Increment();
+                    });
+            })
+        }
+
+        function Increment() { i++;}
     </script>
 </body>
 </html>

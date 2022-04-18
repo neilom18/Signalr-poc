@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Signalr_poc.DTOs;
+using Signalr_poc.Entity;
 using Signalr_poc.Repository;
 using Signalr_poc.WebRTC;
+using SIPSorcery.Net;
 
 namespace Signalr_poc;
 
@@ -11,11 +13,12 @@ public class HubConnection : Hub
     private readonly IUserRepository _userRepository;
     private readonly IRoomRepository _roomRepository;
     private readonly IPeerConnectionManager _peerConnectionManager;
-    public HubConnection(ILogger<HubConnection> logger, IUserRepository userRepository, IRoomRepository roomRepository)
+    public HubConnection(ILogger<HubConnection> logger, IUserRepository userRepository, IRoomRepository roomRepository, IPeerConnectionManager peerConnectionManager)
     {
         _logger = logger;
         _userRepository ??= userRepository;
         _roomRepository ??= roomRepository;
+        _peerConnectionManager ??= peerConnectionManager;
     }
 
     public override Task OnConnectedAsync()
@@ -46,11 +49,34 @@ public class HubConnection : Hub
     {
         var user = _userRepository.GetUser(Context.ConnectionId);
         var room = _roomRepository.GetRoom(roomName);
-
-        room.AddPeerConnection();
-        await Groups.AddToGroupAsync(user.ConnectionId, roomName);
+        var peerConnection = _peerConnectionManager.CreatePeer();
+        room.AddPeerConnection(Context.ConnectionId, peerConnection);
+        await Groups.AddToGroupAsync(user.ConnectionId, room.Name);
         await Clients.Group(room.Name).SendAsync
             ("UserJoinedRoom", new GroupNotification {UserName = user.Name, RoomName = room.Name });
+    }
+
+    public async Task SetAnswer(string roomName, RTCSessionDescriptionInit sdp)
+    {
+        var room = _roomRepository.GetRoom(roomName);
+        if(room is null) return;
+        var peerConnection = room.GetPeerConection(Context.ConnectionId);
+        if (peerConnection is null) return;
+        _peerConnectionManager.SetRemoteDescription(sdp, peerConnection);
+    }
+
+    public async Task<RTCSessionDescriptionInit> GetServerOffer(string roomName)
+    {
+        var room = _roomRepository.GetRoom(roomName);
+        var peerConnection = room.GetPeerConection(Context.ConnectionId);
+        return _peerConnectionManager.CreateOffer(peerConnection, room, Context.ConnectionId);
+    }
+
+    public void AddIceCandidate(IceInfoDTO iceInfoDTO)
+    {
+        var room = _roomRepository.GetRoom(iceInfoDTO.roomName);
+        var peerConnection = room.GetPeerConection(Context.ConnectionId);
+        _peerConnectionManager.AddIceCandidate(iceInfoDTO.iceCandidateInit, peerConnection);
     }
 }
 

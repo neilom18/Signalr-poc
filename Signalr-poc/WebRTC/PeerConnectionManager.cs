@@ -10,9 +10,9 @@ public class PeerConnectionManager : IPeerConnectionManager
 {
 
     private readonly IUserRepository _userRepository;
-    private readonly IHubContext _hubContext;
+    private readonly IHubContext<Hub> _hubContext;
 
-    public PeerConnectionManager(IUserRepository userRepository, IHubContext hubContext)
+    public PeerConnectionManager(IUserRepository userRepository, IHubContext<Hub> hubContext)
     {
         _userRepository ??= userRepository;
         _hubContext ??= hubContext;
@@ -25,7 +25,7 @@ public class PeerConnectionManager : IPeerConnectionManager
 
     private RTCConfiguration GetRTCConfiguration()
     {
-        return new RTCConfiguration() 
+        return new RTCConfiguration()
         {
             iceServers = new List<RTCIceServer>
             {
@@ -56,12 +56,13 @@ public class PeerConnectionManager : IPeerConnectionManager
     {
         peerConnection.onconnectionstatechange += (state) =>
         {
-            if(state == RTCPeerConnectionState.disconnected || state == RTCPeerConnectionState.closed || state == RTCPeerConnectionState.failed)
+            if (state == RTCPeerConnectionState.disconnected || state == RTCPeerConnectionState.closed || state == RTCPeerConnectionState.failed)
             {
-                room.RemovePeerConnection(peerConnection);
+                room.RemovePeerConnection(hubConnectionId);
             }
         };
-        peerConnection.OnRtpPacketReceived += (ip, media, pkt) => room.SendRtpPacket(pkt, peerConnection);
+        var user = _userRepository.GetUsers().Where(x => x.RTCPeerConnections.Contains(peerConnection)).FirstOrDefault();
+        peerConnection.OnRtpPacketReceived += (ip, media, pkt) => room.SendRtpPacket(pkt, peerConnection, user?.Name is null ? String.Empty : user.Name);
 
         // Diagnostics.
         peerConnection.OnReceiveReport += (re, media, rr) => Console.WriteLine($"RTCP Receive for {media} from {re}\n{rr.GetDebugSummary()}");
@@ -72,14 +73,14 @@ public class PeerConnectionManager : IPeerConnectionManager
         peerConnection.onicecandidate += (candidate) => _hubContext.Clients.Client(hubConnectionId).SendAsync("IceCandidateAdded", candidate);
     }
 
-    public bool SetRemoteDescription(RTCSessionDescription sdp)
+    public void SetRemoteDescription(RTCSessionDescriptionInit sdp, RTCPeerConnection peerConnection)
     {
-
+        peerConnection.setRemoteDescription(sdp);
     }
 
-    public void AddIceCandidate(RTCIceCandidateInit candidate)
+    public void AddIceCandidate(RTCIceCandidateInit candidate, RTCPeerConnection peerConnection)
     {
-        peercon
+        peerConnection.addIceCandidate(candidate);
     }
 }
 
