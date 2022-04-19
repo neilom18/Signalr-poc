@@ -21,7 +21,7 @@
     <div class="rooms">
 
     </div>
-    
+
     <script src="Lib/signalr.js" type="text/javascript"></script>
     <script type="text/javascript">
         //https://localhost:7197
@@ -29,57 +29,67 @@
         const config = {
             iceServers: [
                 {
-                urls: ["stun:stun.l.google.com:19302"]
+                    urls: ["stun:stun.l.google.com:19302"]
                 }
             ]
         };
         let i = 0;
         let hubConnection;
         window.onload = async function () {
-            hubConnection = new signalR.HubConnectionBuilder().withUrl("https://4396-177-125-237-209.ngrok.io/hub").build();
+            hubConnection = new signalR.HubConnectionBuilder().withUrl("https://localhost:7197/hub").build();
             await hubConnection.start();
             subscribeHub();
         }
 
-        function subscribeHub(){
+        function subscribeHub() {
             hubConnection.on("RoomCreated", (data) => {
                 console.log("Sala " + data + " criada!!!!");
             })
-    
+
             hubConnection.on("UserCreated", (data) => {
                 console.log("O usuário " + data + " foi cadastrado!!!");
             })
-    
+
             hubConnection.on("UserJoinedRoom", (data) => {
                 console.log("Usuário: " + data.userName + " entrou na sala " + data.roomName);
             })
-    
+
             hubConnection.on("SDPOfferReceived", (data) => {
                 console.log(data);
             })
         }
 
-        function subscribePeerConnection(peerConnection, roomname){
+        function subscribePeerConnection(peerConnection, roomname) {
             peerConnection.ontrack = (event) => {
                 var audio = document.getElementById("audioCtl_" + roomname);
                 console.log(audio);
                 audio.srcObject = event.streams[0];
-                audio.play(); 
+                audio.play();
             }
+            peerConnection.onicecandidate = async (event) => {
+                if (event.candidate) {
+                    console.log('Novo IceCandidate:');
+                    console.log(event.candidate.candidate);
+                    console.log(event.candidate);
+                    if (event.candidate) {
+                        hubConnection.invoke('AddIceCandidate', event.candidate.candidate, roomname);
+                    }
+                }
+            };
         }
 
         function createUser() {
             var username = document.querySelector("#username").value;
             hubConnection.invoke("CreateUser", username)
-            .then(() => {
-                hubConnection.invoke("GetAllRooms")
-                .then((roomsNames) => {
-                    console.log(roomsNames);
-                    if (roomsNames) {
-                        roomsNames.forEach(displayRoom);
-                    }
-                })
-            });
+                .then(() => {
+                    hubConnection.invoke("GetAllRooms")
+                        .then((roomsNames) => {
+                            console.log(roomsNames);
+                            if (roomsNames) {
+                                roomsNames.forEach(displayRoom);
+                            }
+                        })
+                });
         }
 
         function createRoom() {
@@ -87,15 +97,15 @@
             hubConnection.invoke("CreateRoom", roomname);
             displayRoom(roomname);
         }
-        
+
         function displayRoom(roomname) {
-            var room = document.createElement('h2'); 
+            var room = document.createElement('h2');
             room.textContent = roomname;
             document.querySelector(".rooms").appendChild(room);
             var button = document.createElement('button');
-            button.type= "button";
+            button.type = "button";
             button.textContent = 'JoinRoom';
-            button.onclick = function() {joinRoom(roomname)};
+            button.onclick = function () { joinRoom(roomname) };
             document.querySelector(".rooms").appendChild(button);
             var audio = document.createElement('audio');
             audio.controls = true;
@@ -105,7 +115,7 @@
         }
 
         async function joinRoom(roomname) {
-            await hubConnection.invoke("JoinRoom",roomname);
+            await hubConnection.invoke("JoinRoom", roomname);
             await createPeerConnection(roomname);
         }
 
@@ -113,42 +123,44 @@
             var peerConnection = new RTCPeerConnection(config);
             peerConnections[i] = peerConnection;
             var localStream = await GetMediaAudio();
+
             localStream.getTracks().forEach(track => {
                 peerConnections[i].addTrack(track, localStream);
             });
+
             subscribePeerConnection(peerConnections[i], roomname);
             await hubConnection.invoke("GetServerOffer", roomname)
-            .then((data) => {
-                data.type = 'offer';
-                setAnswer(data, roomname);
-            });
+                .then((data) => {
+                    data.type = 'offer';
+                    setAnswer(data, roomname);
+                });
         }
 
-        async function GetMediaAudio(){
+        async function GetMediaAudio() {
             return await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
         }
 
         function setAnswer(offer, roomname) {
             peerConnections[i].setRemoteDescription(offer)
-            .then(() => {
-                peerConnections[i].createAnswer()
-                    .then((answer) => {
-                        console.log(answer);
-                        console.log(i);
-                        console.log(peerConnections[i]);
-                        return peerConnections[i].setLocalDescription(answer);
-                    })
-                    .then(async () => {
-                        console.log('Enviando resposta ao servidor');
-                        console.log('SDP: ' + peerConnections[i].localDescription?.sdp);
-                        //this.localPeerConnection.localDescription.type = 'answer'; // XUNXO ALERT
-                        await hubConnection.invoke('SetAnswer', roomname, { sdp: peerConnections[i].localDescription?.sdp, type: 0 });
-                        Increment();
-                    });
-            })
+                .then(() => {
+                    peerConnections[i].createAnswer()
+                        .then((answer) => {
+                            console.log(answer);
+                            console.log(i);
+                            console.log(peerConnections[i]);
+                            return peerConnections[i].setLocalDescription(answer);
+                        })
+                        .then(async () => {
+                            console.log('Enviando resposta ao servidor');
+                            console.log('SDP: ' + peerConnections[i].localDescription?.sdp);
+                            //this.localPeerConnection.localDescription.type = 'answer'; // XUNXO ALERT
+                            await hubConnection.invoke('SetAnswer', roomname, { sdp: peerConnections[i].localDescription?.sdp, type: 0 });
+                            Increment();
+                        });
+                })
         }
 
-        function Increment() { i++;}
+        function Increment() { i++; }
     </script>
 </body>
 </html>

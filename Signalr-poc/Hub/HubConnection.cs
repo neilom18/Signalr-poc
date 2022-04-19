@@ -54,17 +54,21 @@ public class HubConnection : Hub
     {
         var user = _userRepository.GetUser(Context.ConnectionId);
         var room = _roomRepository.GetRoom(roomName);
-        var peerConnection = _peerConnectionManager.CreatePeer();
-        room.AddPeerConnection(Context.ConnectionId, peerConnection);
-        await Groups.AddToGroupAsync(user.ConnectionId, room.Name);
-        await Clients.Group(room.Name).SendAsync
-            ("UserJoinedRoom", new GroupNotification {UserName = user.Name, RoomName = room.Name });
+        if (!user.Rooms.Contains(room))
+        {
+            var peerConnection = _peerConnectionManager.CreatePeer();
+            room.AddPeerConnection(Context.ConnectionId, peerConnection);
+            user.Rooms.Add(room);
+            await Groups.AddToGroupAsync(user.ConnectionId, room.Name);
+            await Clients.Group(room.Name).SendAsync
+                ("UserJoinedRoom", new GroupNotification { UserName = user.Name, RoomName = room.Name });
+        }
     }
 
     public async Task SetAnswer(string roomName, RTCSessionDescriptionInit sdp)
     {
         var room = _roomRepository.GetRoom(roomName);
-        if(room is null) return;
+        if (room is null) return;
         var peerConnection = room.GetPeerConection(Context.ConnectionId);
         if (peerConnection is null) return;
         _peerConnectionManager.SetRemoteDescription(sdp, peerConnection);
@@ -77,8 +81,10 @@ public class HubConnection : Hub
         return _peerConnectionManager.CreateOffer(peerConnection, room, Context.ConnectionId);
     }
 
-    public void AddIceCandidate(IceInfoDTO iceInfoDTO)
+    public void AddIceCandidate(string candidate, string roomName)
     {
+        var iceCandidate = new RTCIceCandidateInit { candidate = candidate };
+        var iceInfoDTO = new IceInfoDTO() { iceCandidateInit = iceCandidate, roomName = roomName };
         _peerConnectionManager.AddIceCandidate(iceInfoDTO, Context.ConnectionId);
     }
 }
