@@ -40,10 +40,10 @@ public class PeerConnectionManager : IPeerConnectionManager
         };
     }
 
-    public RTCSessionDescriptionInit? CreateOffer(RTCPeerConnection peerConnection, Room room, string hubConnectionId)
+    public RTCSessionDescriptionInit? CreateOffer(RTCPeerConnection peerConnection, Room room, string connectionId)
     {
         AddMediaTrack(peerConnection);
-        ConfigureRTCPeer(peerConnection, room, hubConnectionId);
+        ConfigureRTCPeer(peerConnection, room, connectionId);
         return peerConnection.createOffer(null);
     }
 
@@ -55,13 +55,13 @@ public class PeerConnectionManager : IPeerConnectionManager
         peerConnection.addTrack(audioTrack);
     }
 
-    public void ConfigureRTCPeer(RTCPeerConnection peerConnection, Room room, string hubConnectionId)
+    public void ConfigureRTCPeer(RTCPeerConnection peerConnection, Room room, string connectionId)
     {
         peerConnection.onconnectionstatechange += (state) =>
         {
             if (state == RTCPeerConnectionState.disconnected || state == RTCPeerConnectionState.closed || state == RTCPeerConnectionState.failed)
             {
-                room.RemovePeerConnection(hubConnectionId);
+                room.RemovePeerConnection(connectionId);
             }
         };
         var user = _userRepository.GetUsers().Where(x => x.RTCPeerConnections.Contains(peerConnection)).FirstOrDefault();
@@ -73,19 +73,19 @@ public class PeerConnectionManager : IPeerConnectionManager
         peerConnection.GetRtpChannel().OnStunMessageReceived += (msg, ep, isRelay) => Console.WriteLine($"STUN {msg.Header.MessageType} received from {ep}.");
         peerConnection.oniceconnectionstatechange += (state) => Console.WriteLine($"ICE connection state change to {state}.");
 
-        peerConnection.onicecandidate += (candidate) => _hubContext.Clients.Client(hubConnectionId).SendAsync("IceCandidateAdded", candidate);
+        peerConnection.onicecandidate += (candidate) => _hubContext.Clients.Client(connectionId).SendAsync("IceCandidateAdded", candidate);
     }
-
-    public void SetRemoteDescription(RTCSessionDescriptionInit sdp, RTCPeerConnection peerConnection)
+    
+     public void SetRemoteDescription(RTCSessionDescriptionInit sdp, RTCPeerConnection peerConnection)
     {
         peerConnection.setRemoteDescription(sdp);
     }
 
     public void AddIceCandidate(IceInfoDTO iceInfoDTO, string connectionId)
     {
-        var room = _roomRepository.GetRoom(iceInfoDTO.roomName);
+        var room = _roomRepository.GetRoom(iceInfoDTO.RoomName);
         var peerConnection = room.GetPeerConection(connectionId);
-        peerConnection.addIceCandidate(iceInfoDTO.iceCandidateInit);
+        peerConnection.addIceCandidate(iceInfoDTO.IceCandidateInit);
     }
 }
 

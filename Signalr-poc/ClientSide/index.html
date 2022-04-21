@@ -129,7 +129,7 @@
             });
 
             subscribePeerConnection(peerConnections[i], roomname);
-            await hubConnection.invoke("GetServerOffer", roomname)
+            await hubConnection.invoke("CreateServerOffer", roomname)
                 .then((data) => {
                     data.type = 'offer';
                     setAnswer(data, roomname);

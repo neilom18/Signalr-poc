@@ -1,6 +1,9 @@
+using MediatR;
 using Signalr_poc;
+using Signalr_poc.Extensions.MediatR;
 using Signalr_poc.Repository;
 using Signalr_poc.WebRTC;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +16,10 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton<IRoomRepository, RoomRepository>();
 builder.Services.AddSingleton<IUserRepository, UserRepository>();
 builder.Services.AddSingleton<IPeerConnectionManager, PeerConnectionManager>();
+
+builder.Services.AddMediatR(Assembly.GetExecutingAssembly());
+builder.Services.AddScoped<ServiceFactory>(p => p.GetService);
+builder.Services.AddScoped<ICustomPublisher, CustomPublisher>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
