@@ -7,8 +7,6 @@ using Signalr_poc.Commands.WebRTC.CreateServerOffer;
 using Signalr_poc.Commands.WebRTC.SetAnswer;
 using Signalr_poc.DTOs;
 using Signalr_poc.Feature.Rooms.Query.GetAllRooms;
-using Signalr_poc.Repository;
-using Signalr_poc.WebRTC;
 using Signalr_pocRooms.Commands.Rooms;
 using SIPSorcery.Net;
 
@@ -75,7 +73,6 @@ public class HubConnection : Hub
         await Groups.AddToGroupAsync(result.User.ConnectionId, result.Room.Name);
         await Clients.Group(result.Room.Name).SendAsync
             ("UserJoinedRoom", new GroupNotification { UserName = result.User.Name, RoomName = result.Room.Name });
-
     }
 
     public async Task SetAnswer(string roomName, RTCSessionDescriptionInit sdp)
