@@ -1,6 +1,4 @@
 ﻿using MediatR;
-using Signalr_poc.Events.Room.JoinedRoom;
-using Signalr_poc.Extensions.MediatR;
 using Signalr_poc.Repository;
 using Signalr_poc.WebRTC;
 
@@ -11,17 +9,11 @@ namespace Signalr_pocRooms.Commands.Rooms
         private readonly IRoomRepository _roomRepository;
         private readonly IUserRepository _userRepository;
         private readonly IPeerConnectionManager _peerConnectionManager;
-        private readonly ICustomPublisher _publisher;
-
-        public JoinRoomCommandHandler(IRoomRepository roomRepository,
-                                      IUserRepository userRepository,
-                                      IPeerConnectionManager peerConnectionManager,
-                                      ICustomPublisher publisher)
+        public JoinRoomCommandHandler(IRoomRepository roomRepository, IUserRepository userRepository, IPeerConnectionManager peerConnectionManager)
         {
             _roomRepository ??= roomRepository;
             _userRepository ??= userRepository;
             _peerConnectionManager ??= peerConnectionManager;
-            _publisher ??= publisher;
         }
 
         public Task<JoinRoomCommandResult> Handle(JoinRoomCommand request, CancellationToken cancellationToken)
@@ -34,8 +26,6 @@ namespace Signalr_pocRooms.Commands.Rooms
                 room.AddPeerConnection(request.ConnectionId, peerConnection);
                 user.Rooms.Add(room);
             }
-            _publisher.Publish(new OnUserJoinedRoom() { RoomName = room.Name, UserName = user.Name},PublishStrategy.ParallelNoWait ,cancellationToken);
-
             return Task.FromResult(new JoinRoomCommandResult() { Room = room, User = user});
         }
     }
