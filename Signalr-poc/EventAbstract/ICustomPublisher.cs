@@ -1,7 +1,9 @@
 ﻿
+using Signalr_poc.EventAbstract;
+
 namespace Signalr_poc.Extensions.MediatR
 {
-    public interface ICustomPublisher
+    public interface ICustomPublisher : IHandlerBase
     {
         Task Publish<TNotification>(TNotification notification);
         Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken);

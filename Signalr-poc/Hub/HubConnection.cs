@@ -46,8 +46,8 @@ public class HubConnection : Hub
         if (result)
         {
             await Clients.Caller.SendAsync("UserCreated", username);
-            return;
         }
+        return;
     }
 
     public async Task CreateRoom(string roomName)

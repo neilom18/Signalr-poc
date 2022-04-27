@@ -1,4 +1,6 @@
 ﻿using MediatR;
+using Signalr_poc.Event.Logging;
+
 namespace Signalr_poc.Extensions.MediatR
 {
     public class CustomPublisher : ICustomPublisher
@@ -20,6 +22,7 @@ namespace Signalr_poc.Extensions.MediatR
         public IDictionary<PublishStrategy, IMediator> PublishStrategies = new Dictionary<PublishStrategy, IMediator>();
         public PublishStrategy DefaultStrategy { get; set; } = PublishStrategy.SyncContinueOnException;
 
+        public Task Handler<TNotification>(TNotification handler, CancellationToken cancellationToken) => Publish(handler);
         public Task Publish<TNotification>(TNotification notification)
         {
             return Publish(notification, DefaultStrategy, default(CancellationToken));
@@ -32,6 +35,10 @@ namespace Signalr_poc.Extensions.MediatR
 
         public Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken)
         {
+            if(notification.GetType().BaseType == typeof(LogBase))
+            {
+                return Publish(new LogBase(notification.GetType().GetProperty("LogMessage").GetValue(notification).ToString()), DefaultStrategy, cancellationToken);
+            }
             return Publish(notification, DefaultStrategy, cancellationToken);
         }
 
@@ -148,5 +155,6 @@ namespace Signalr_poc.Extensions.MediatR
                 throw new AggregateException(exceptions);
             }
         }
+
     }
 }
